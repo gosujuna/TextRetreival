@@ -13,12 +13,12 @@ import torchvision.transforms as tv_t
 DATASET_ROOT = './data/vatex'
 
 def collate_fn(batch, padding_value=0):
-    # batch is a list of tuples of the form (video_tensor, caption_tensor, caption) where
+    # batch is a list of tuples of the form (video_tensor, caption_tensor, caption, videoID) where
     # video_tensor has shape (L*, C, H, W), caption_tensor has shape (L*,), and caption is just a string
     # where L* is an arbitrary sequence length
     #
-    # This function should return a 3-tuple of the form 
-    # (batched_video_tensors, batched_caption_tensors, caption_list)
+    # This function should return a 4-tuple of the form 
+    # (batched_video_tensors, batched_caption_tensors, caption_list, videoID_list)
     #
     # batched_video_tensors has shape (batch_size, L_max, C, H, W)
     # caption_tensor has shape (batch_size, L_max)
@@ -28,7 +28,7 @@ def collate_fn(batch, padding_value=0):
 
     for i in range(len(batch[0])):
         c_x = [x[i] for x in batch]
-        if i == 2:
+        if i != 0 and i != 1:
             c_x = default_collate(c_x)
         else:
             c_x = pad_sequence(c_x, batch_first=True, padding_value=padding_value)
@@ -123,9 +123,13 @@ class Vatex(Dataset):
         videodata = torch.permute(videodata, (0, 3, 1, 2))
         videodata = self.transforms(videodata)
         
-        return (videodata, tokenized_caption_tensor, caption)
+        return (videodata, tokenized_caption_tensor, caption, videoId)
 
 if __name__ == '__main__':
     vatex = Vatex()
     loader = DataLoader(vatex, batch_size=20, collate_fn=vatex.collate_fn)
-    _ = next(iter(loader))
+    data = next(iter(loader))
+    print(data[0].shape)
+    print(data[1].shape)
+    print(data[2][0])
+    print(data[3][0])
