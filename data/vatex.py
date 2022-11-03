@@ -32,7 +32,6 @@ def collate_fn(batch, padding_value=0):
             c_x = default_collate(c_x)
         else:
             c_x = pad_sequence(c_x, batch_first=True, padding_value=padding_value)
-            print(c_x.shape)
 
         collated.append(c_x)
     return tuple(collated)
