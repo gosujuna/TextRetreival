@@ -3,6 +3,7 @@ import json
 import os
 import nltk
 import torch
+import pickle
 import skvideo.io  
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import DataLoader
@@ -37,7 +38,7 @@ def collate_fn(batch, padding_value=0):
     return tuple(collated)
 
 class Vatex(Dataset):
-    def __init__(self):
+    def __init__(self, is_train=True):
         # TODO: make these configurable
         height = 240
         width = 240
@@ -46,46 +47,16 @@ class Vatex(Dataset):
         self.collate_fn = collate_fn
 
         # load filepaths and read annotations file
-        # TODO: allow for selection between train/validation sets
-        self.video_dir = os.path.join(DATASET_ROOT, 'vatex_training')
-        self.ann_path = os.path.join(DATASET_ROOT, 'vatex_training_v1.0.json')
+        self.video_dir, self.anns = read_annotations(is_train=is_train)
 
-        video_names = list(filter(lambda x: '.mp4' in x, os.listdir(self.video_dir)))
-
-        with open(self.ann_path, encoding='utf_8') as f:
-            anns = json.load(f)
-
-            # delete chinese captions since we don't need them
-            for entry in anns:
-                del entry['chCap']
-
-            # filter out entries that don't correspond to a local video file (need to do b/c some of the videos are no longer available)
-            videoIds = set(map(lambda x: x.split('.')[0], video_names))
-            anns = list(filter(lambda x: x['videoID'] in videoIds, anns))
-            self.anns = anns
-
-        # generate vocab from captions
-        self.unknown_token = '</UNK>'
-        self.start_token = '</START>'
-        self.end_token = '</END>'
-
-        self.token_dict = OrderedDict({
-            '': -1,
-            self.unknown_token: -1,
-            self.start_token: -1,
-            self.end_token: -1,
-        })
-
-        for entry in self.anns:
-            for caption in entry['enCap']:
-                tokens = nltk.tokenize.word_tokenize(caption.lower())
-                for token in tokens:
-                    if token not in self.token_dict:
-                        self.token_dict[token] = 1
-                    else:
-                        self.token_dict[token] += 1
+        # load vocab file or generate it if it does not exist
+        token_dict_path = os.path.join(DATASET_ROOT, 'token_counts.dict')
+        if os.path.isfile(token_dict_path):
+            with open(token_dict_path, 'rb') as f:
+                self.token_dict = OrderedDict(pickle.load(f))
+        else:
+            self.token_dict = generate_vocab()
         # TODO: filter out uncommon tokens from vocab
-        # TODO: save/load token counts to file
 
         self.token2index = OrderedDict([(tkn, ii) for (ii, tkn) in enumerate(self.token_dict.keys())])
         self.index2token = OrderedDict([x for x in enumerate(self.token_dict.keys())])
@@ -98,7 +69,6 @@ class Vatex(Dataset):
 
     def __getitem__(self, index):
         # every video has 10 captions, so __getitem__(5) should get the caption at index 5 of the 1st video, __getitem__(15) should get the caption at index 5 of the 2nd video, ...
-
         idx = index // 10
 
         entry = self.anns[idx]
@@ -125,8 +95,63 @@ class Vatex(Dataset):
         
         return (videodata, tokenized_caption_tensor, caption, videoId)
 
+# vocab is always generated off of the training data; during validation, tokens that do not appear in the training data will get mapped to </UNK>
+def generate_vocab():
+    _, anns = read_annotations(is_train=True)
+
+    # generate vocab from captions
+    unknown_token = '</UNK>'
+    start_token = '</START>'
+    end_token = '</END>'
+
+    token_dict = OrderedDict({
+        '': -1,
+        unknown_token: -1,
+        start_token: -1,
+        end_token: -1,
+    })
+
+    for entry in anns:
+        for caption in entry['enCap']:
+            tokens = nltk.tokenize.word_tokenize(caption.lower())
+            for token in tokens:
+                if token not in token_dict:
+                    token_dict[token] = 1
+                else:
+                    token_dict[token] += 1
+    
+    # save token_counts to file
+    with open(os.path.join(DATASET_ROOT, 'token_counts.dict'), 'wb') as f:
+        pickle.dump(token_dict, f)
+
+    return token_dict
+
+# Reads the training or validation json data and returns the filtered and deserialized annotations
+def read_annotations(is_train=True):
+    if is_train:
+        video_dir = os.path.join(DATASET_ROOT, 'vatex_training')
+        ann_path = os.path.join(DATASET_ROOT, 'vatex_training_v1.0.json')
+    else:
+        pass # TODO: validation data
+
+    video_names = list(filter(lambda x: '.mp4' in x, os.listdir(video_dir)))
+
+    with open(ann_path, encoding='utf_8') as f:
+        anns = json.load(f)
+
+        # delete chinese captions since we don't need them
+        for entry in anns:
+            del entry['chCap']
+
+        # filter out entries that don't correspond to a local video file (need to do b/c some of the videos are no longer available)
+        videoIds = set(map(lambda x: x.split('.')[0], video_names))
+        anns = list(filter(lambda x: x['videoID'] in videoIds, anns))
+        return video_dir, anns
+
 if __name__ == '__main__':
     vatex = Vatex()
+    print(len(vatex))
+    print(len(vatex.token_dict))
     loader = DataLoader(vatex, batch_size=20, collate_fn=vatex.collate_fn)
     data = next(iter(loader))
     print(data[0].shape)
