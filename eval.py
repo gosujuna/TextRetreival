@@ -5,14 +5,14 @@ from utils.device import DEVICE
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch
-
-CHECKPOINT_DIR = './checkpoints/video_text_match'
+import yaml
+import argparse
 
 def topk(video_features, text_features, k=(1, 5, 10)):
-    similarity = video_features @ torch.transpose(text_features, 0, 1)
+    similarity = (video_features @ torch.transpose(text_features, 0, 1)).to('cpu')
 
     topk, indices = torch.topk(similarity, k=k[-1], dim=1, largest=True, sorted=True)
-    idx = torch.unsqueeze(torch.arange(indices.shape[0]), 1).to(DEVICE)
+    idx = torch.unsqueeze(torch.arange(indices.shape[0]), 1)
 
     accuracies = []
     for k_val in k:
@@ -25,26 +25,40 @@ def topk(video_features, text_features, k=(1, 5, 10)):
 
 
 if __name__ == '__main__':
-    num_captions = 1
-    batch_size = 1
-    token_count_thresh = 4
+    parser = argparse.ArgumentParser(description='Evaluate the model')
+    parser.add_argument('checkpoint_dir', metavar='N', type=str, help='the path to checkpoint directory containing the config file')
+    parser.add_argument('--cfg', type=str, help='the name of the config file containing hyperparameters')
+    parser.add_argument('--weights', type=str, help='the name of the file containing the weights to load')
 
-    video_lstm_input_dims = 300
-    text_lstm_input_dims = 300
-    hidden_dims = 512
-    text_lstm_layers = 2
-    video_lstm_layers = 1
-    fc_dims = 1024
-    out_dims = 1024
+    args = parser.parse_args()
+    checkpoint_dir = args.checkpoint_dir
+    cfg = args.cfg
+    weights = args.weights
 
-    vatex_train = Vatex(is_train=True, num_captions=num_captions, token_count_thresh=token_count_thresh)
-    vatex_eval = Vatex(is_train=False, num_captions=num_captions, token_count_thresh=token_count_thresh)
-    train_loader = DataLoader(vatex_train, batch_size=batch_size, collate_fn=vatex_eval.collate_fn, shuffle=True)
-    eval_loader = DataLoader(vatex_eval, batch_size=batch_size, collate_fn=vatex_eval.collate_fn, shuffle=True)
-    model = VideoTextMatch(vatex_train.vocab_size(), text_lstm_input_dims, video_lstm_input_dims, hidden_dims, text_lstm_layers, video_lstm_layers, fc_dims, out_dims).to(DEVICE)
+    with open(os.path.join(checkpoint_dir, cfg)) as fp:
+        cfg = yaml.safe_load(fp)
 
-    checkpoint = '1668537176_video_text_match_latest.pth'
-    with open(os.path.join(CHECKPOINT_DIR, checkpoint), 'rb') as f:
+    lr = cfg['lr']
+    num_epochs = cfg['num_epochs']
+    accumulate_every = cfg['accumulate_every']
+
+    out_dims = cfg['model']['out_dims']
+
+    token_count_thresh = cfg['dataset']['token_count_thresh']
+
+    train_cfg = cfg['dataset']['train']
+    eval_cfg = cfg['dataset']['eval']
+
+    video_encoder_cfg = cfg['model']['video_encoder']
+    text_encoder_cfg = cfg['model']['text_encoder']
+
+    vatex_train = Vatex(is_train=True, num_captions=train_cfg['num_captions'], token_count_thresh=token_count_thresh)
+    vatex_eval = Vatex(is_train=False, num_captions=eval_cfg['num_captions'], token_count_thresh=token_count_thresh)
+    train_loader = DataLoader(vatex_train, batch_size=train_cfg['batch_size'], collate_fn=vatex_eval.collate_fn, shuffle=True)
+    eval_loader = DataLoader(vatex_eval, batch_size=eval_cfg['batch_size'], collate_fn=vatex_eval.collate_fn, shuffle=True)
+    model = VideoTextMatch(vatex_train.vocab_size(), video_encoder_cfg, text_encoder_cfg, out_dims).to(DEVICE)
+
+    with open(os.path.join(checkpoint_dir, weights), 'rb') as f:
         model.load_state_dict(torch.load(f))
     model = model.eval()
 
@@ -62,8 +76,8 @@ if __name__ == '__main__':
 
             video_features.append(video_out)
             text_features.append(text_out)
-            captions.append(caption)
-            video_ids.append(video_id)
+            captions.extend(caption)
+            video_ids.extend(video_id)
 
     video_features = torch.cat(video_features)
     text_features = torch.cat(text_features)

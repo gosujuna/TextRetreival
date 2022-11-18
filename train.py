@@ -6,8 +6,8 @@ from models.video_text_match import VideoTextMatch
 from tqdm import tqdm
 import torch
 from datetime import datetime
-
-CHECKPOINT_DIR = './checkpoints/video_text_match'
+import argparse
+import yaml
 
 def compute_loss(video_features, text_features, temperature):
     criterion = torch.nn.CrossEntropyLoss(reduction='sum')
@@ -76,46 +76,56 @@ def eval(loader, model):
     return total_loss
 
 if __name__ == '__main__':
-    num_epochs = 100
-    num_captions = 1
-    batch_size = 4
-    token_count_thresh = 4
+    parser = argparse.ArgumentParser(description='Train the model')
+    parser.add_argument('checkpoint_dir', metavar='C', type=str, help='the path to checkpoint directory containing the config file')
+    parser.add_argument('--cfg', type=str, help='the name of the config file containing hyperparameters')
 
-    video_lstm_input_dims = 300
-    text_lstm_input_dims = 300
-    hidden_dims = 512
-    text_lstm_layers = 2
-    video_lstm_layers = 1
-    fc_dims = 1024
-    out_dims = 1024
+    args = parser.parse_args()
+    checkpoint_dir = args.checkpoint_dir
+    cfg = args.cfg
 
-    lr = .0001
+    with open(os.path.join(checkpoint_dir, cfg)) as fp:
+        cfg = yaml.safe_load(fp)
 
-    vatex_train = Vatex(is_train=True, num_captions=num_captions, token_count_thresh=token_count_thresh)
-    vatex_eval = Vatex(is_train=False, num_captions=num_captions, token_count_thresh=token_count_thresh)
-    train_loader = DataLoader(vatex_train, batch_size=batch_size, collate_fn=vatex_train.collate_fn, shuffle=True)
-    eval_loader = DataLoader(vatex_eval, batch_size=batch_size, collate_fn=vatex_eval.collate_fn, shuffle=True)
+    lr = cfg['lr']
+    num_epochs = cfg['num_epochs']
+    accumulate_every = cfg['accumulate_every']
 
-    model = VideoTextMatch(vatex_train.vocab_size(), text_lstm_input_dims, video_lstm_input_dims, hidden_dims, text_lstm_layers, video_lstm_layers, fc_dims, out_dims).to(DEVICE)
+    out_dims = cfg['model']['out_dims']
+
+    token_count_thresh = cfg['dataset']['token_count_thresh']
+
+    train_cfg = cfg['dataset']['train']
+    eval_cfg = cfg['dataset']['eval']
+
+    video_encoder_cfg = cfg['model']['video_encoder']
+    text_encoder_cfg = cfg['model']['text_encoder']
+
+    vatex_train = Vatex(is_train=True, num_captions=train_cfg['num_captions'], token_count_thresh=token_count_thresh)
+    vatex_eval = Vatex(is_train=False, num_captions=eval_cfg['num_captions'], token_count_thresh=token_count_thresh)
+    train_loader = DataLoader(vatex_train, batch_size=train_cfg['batch_size'], collate_fn=vatex_train.collate_fn, shuffle=True)
+    eval_loader = DataLoader(vatex_eval, batch_size=eval_cfg['batch_size'], collate_fn=vatex_eval.collate_fn, shuffle=True)
+
+    model = VideoTextMatch(vatex_train.vocab_size(), video_encoder_cfg, text_encoder_cfg, out_dims).to(DEVICE)
 
     optimizer = torch.optim.Adam(params=model.parameters(), lr=lr)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=.95, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1.0, verbose=True)
 
     best_loss = float('inf')
     start_time = datetime.now()
     
     for i in range(num_epochs):
-        train_loss = train(train_loader, model, optimizer, accumulate_every=16)
+        train_loss = train(train_loader, model, optimizer, accumulate_every=accumulate_every)
         print(f'Epoch: {i}\tAvg train loss: {train_loss/len(vatex_train)}')
         eval_loss = eval(eval_loader, model)
         print(f'Epoch: {i}\tAvg eval loss: {eval_loss/len(vatex_eval)}')
 
         if eval_loss < best_loss:
             best_loss = eval_loss
-            with open(os.path.join(CHECKPOINT_DIR, f'{int(round(start_time.timestamp()))}_video_text_match_best.pth'), 'wb') as f:
+            with open(os.path.join(checkpoint_dir, f'{int(round(start_time.timestamp()))}_video_text_match_best.pth'), 'wb') as f:
                 torch.save(model.state_dict(), f)
 
-        with open(os.path.join(CHECKPOINT_DIR, f'{int(round(start_time.timestamp()))}_video_text_match_latest.pth'), 'wb') as f:
+        with open(os.path.join(checkpoint_dir, f'{int(round(start_time.timestamp()))}_video_text_match_latest.pth'), 'wb') as f:
                 torch.save(model.state_dict(), f)
 
         scheduler.step()

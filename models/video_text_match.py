@@ -55,11 +55,24 @@ class TextEncoder(nn.Module):
         return self.fc(text_features[:, -1, :])
 
 class VideoTextMatch(nn.Module):
-    def __init__(self, vocab_size, embedding_dims, lstm_input_dims, hidden_dims, text_lstm_layers, video_lstm_layers, fc_dims, out_dims):
+    def __init__(self, vocab_size, video_encoder_cfg, text_encoder_cfg, out_dims):
         super(VideoTextMatch, self).__init__()
 
-        self.text_encoder = TextEncoder(vocab_size, embedding_dims, hidden_dims, text_lstm_layers, fc_dims, out_dims)
-        self.video_encoder = VideoEncoder(lstm_input_dims, hidden_dims, video_lstm_layers, fc_dims, out_dims)
+        self.text_encoder = TextEncoder(
+            vocab_size, 
+            text_encoder_cfg['lstm_input_dims'], 
+            text_encoder_cfg['hidden_dims'], 
+            text_encoder_cfg['lstm_layers'], 
+            text_encoder_cfg['fc_dims'], 
+            out_dims
+        )
+        self.video_encoder = VideoEncoder(
+            video_encoder_cfg['lstm_input_dims'], 
+            video_encoder_cfg['hidden_dims'], 
+            video_encoder_cfg['lstm_layers'], 
+            video_encoder_cfg['fc_dims'], 
+            out_dims
+        )
         
     def forward(self, video, text):
         return self.video_encoder(video), self.text_encoder(text)

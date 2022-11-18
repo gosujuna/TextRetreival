@@ -53,8 +53,12 @@ class Vatex(Dataset):
         # load filepaths and read annotations file
         self.video_dir, self.tensor_dir, self.anns = read_annotations(is_train=is_train)
 
-        # load vocab file or generate it if it does not exist
-        token_dict = generate_vocab(self.num_captions)
+        # generate vocab for training, or load it if doing eval
+        if is_train:
+            token_dict = generate_vocab(self.num_captions)
+        else:
+            with open(os.path.join(DATASET_ROOT, 'token_counts.dict'), 'rb') as f:
+                token_dict = pickle.load(f)
 
         # filter out uncommon tokens from vocab
         unknown_token = '</UNK>'
@@ -92,9 +96,7 @@ class Vatex(Dataset):
 
         entry = self.anns[idx]
         videoId = entry['videoID']
-
-        if index % self.num_captions < self.num_captions:
-            caption = entry['enCap'][index % self.num_captions]
+        caption = entry['enCap'][index % self.num_captions]
 
         tokenized_caption = nltk.tokenize.word_tokenize(caption.lower())
 
@@ -116,7 +118,7 @@ class Vatex(Dataset):
         attempts = 0
         while not success:
             with open(tensor_path, 'rb') as f:
-                video_data = torch.load(f).to(DEVICE) 
+                video_data = torch.load(f).to(DEVICE)
 
             if video_data.dtype == torch.uint8:
                 video_data = video_data.type(torch.FloatTensor)
@@ -134,7 +136,6 @@ class Vatex(Dataset):
             if attempts > 5:
                 print(f'Failed to load video with id: {videoId}')
                 raise Exception 
-
         # video_data has shape (N frames, H, W, C)
         video_data = torch.permute(video_data, (0, 3, 1, 2))
         video_data = torch.nan_to_num(self.transforms(video_data), nan=0)
@@ -178,8 +179,8 @@ def read_annotations(is_train=True):
         tensor_dir = os.path.join(DATASET_ROOT, 'vatex_validation_tensors')
         ann_path = os.path.join(DATASET_ROOT, 'vatex_validation_v1.0.json')
 
-    subset = 1000 if is_train else 100
-    video_names = list(filter(lambda x: '.pt' in x, os.listdir(tensor_dir)))[:]
+    subset = -1 if is_train else -1
+    video_names = list(filter(lambda x: '.pt' in x, os.listdir(tensor_dir)))[:subset]
 
     with open(ann_path, encoding='utf_8') as f:
         anns = json.load(f)

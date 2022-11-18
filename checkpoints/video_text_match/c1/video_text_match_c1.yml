@@ -1,0 +1,25 @@
+model:
+  out_dims: 1024
+  video_encoder:
+    lstm_input_dims: 300
+    hidden_dims: 512
+    lstm_layers: 1
+    fc_dims: 1024
+  text_encoder:
+    lstm_input_dims: 300
+    hidden_dims: 512
+    lstm_layers: 2
+    fc_dims: 1024
+
+dataset:
+  token_count_thresh: 4
+  train:
+    batch_size: 4
+    num_captions: 1
+  eval:
+    batch_size: 4
+    num_captions: 1
+
+lr: 1.0e-4
+num_epochs: 100
+accumulate_every: 16
