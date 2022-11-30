@@ -27,8 +27,9 @@ class VideoEncoder(nn.Module):
     def forward(self, video):
         batch_size = video.shape[0]
         n_frames = video.shape[1]
-
-        cnn_out = torch.unflatten(self.cnn(torch.flatten(video, start_dim=0, end_dim=1)), 0, (batch_size, n_frames))
+        cnn_flat = self.cnn(video.flatten(start_dim=0, end_dim=1))
+        cnn_out = cnn_flat.unflatten(0, (batch,n_frames))
+        #cnn_out = torch.unflatten(self.cnn(torch.flatten(video, start_dim=0, end_dim=1)), 0, (batch_size, n_frames))
         video_features, (h_n, c_n) = self.lstm(cnn_out)
         return self.fc(video_features[:, -1, :])
 
