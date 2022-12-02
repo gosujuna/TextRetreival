@@ -2,7 +2,7 @@
 
 Usage: python train.py [path_to_checkpoint_directory] --cfg=[name_of_config_file]
 
-##Resume Training
+## Resume Training
 
 Usage: python train.py [path to checkpoint directory] --cfg=[name of config file] --rsm[path to latest model params OR path to resume_training.pth file]
 
