@@ -79,10 +79,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train the model')
     parser.add_argument('checkpoint_dir', metavar='C', type=str, help='the path to checkpoint directory containing the config file')
     parser.add_argument('--cfg', type=str, help='the name of the config file containing hyperparameters')
-
+    parser.add_argument('--rsm', type=str, help='the path to the pth file to resume training from', required=False)
     args = parser.parse_args()
     checkpoint_dir = args.checkpoint_dir
     cfg = args.cfg
+    rsm_pth = args.rsm
 
     with open(os.path.join(checkpoint_dir, cfg)) as fp:
         cfg = yaml.safe_load(fp)
@@ -110,11 +111,26 @@ if __name__ == '__main__':
 
     optimizer = torch.optim.Adam(params=model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=1.0, verbose=True)
-
+    epochs = 0
     best_loss = float('inf')
     start_time = datetime.now()
-    
-    for i in range(num_epochs):
+    if rsm_pth:
+        print("resuming training from...", rsm_pth)
+        checkpoint = torch.load(rsm_pth)
+        if 'model_state_dict' in checkpoint:
+            model.load_state_dict(checkpoint['model_state_dict'])
+            print('previously trained model weights loaded...')
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            print('previously trained optimizer loaded...')
+            epochs = checkpoint['epoch']
+            best_loss = checkpont['loss']
+            print('best loss was: ', best_loss)
+        else:
+            model.load_state_dict(checkpoint)
+            print('previously trained model weights loaded...')
+    else:
+        print("starting new training...")
+    for i in range(epochs, num_epochs):
         train_loss = train(train_loader, model, optimizer, accumulate_every=accumulate_every)
         print(f'Epoch: {i}\tAvg train loss: {train_loss/len(vatex_train)}')
         eval_loss = eval(eval_loader, model)
@@ -127,6 +143,13 @@ if __name__ == '__main__':
 
         with open(os.path.join(checkpoint_dir, f'{int(round(start_time.timestamp()))}_video_text_match_latest.pth'), 'wb') as f:
                 torch.save(model.state_dict(), f)
+        with open(os.path.join(checkpoint_dir,f'resume_training.pth'),'wb') as f:
+            torch.save({
+                'epoch': i,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': best_loss,
+                }, f)
 
         scheduler.step()
 
