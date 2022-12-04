@@ -123,7 +123,7 @@ if __name__ == '__main__':
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
             print('previously trained optimizer loaded...')
             epochs = checkpoint['epoch']
-            best_loss = checkpont['loss']
+            best_loss = checkpoint['loss']
             print('best loss was: ', best_loss)
         else:
             model.load_state_dict(checkpoint)

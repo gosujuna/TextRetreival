@@ -90,8 +90,6 @@ class Vatex(Dataset):
         return len(self.anns) * self.num_captions
 
     def __getitem__(self, index):
-        # for each video, we generate num_captions number of true AND false pairings
-
         idx = index // self.num_captions
 
         entry = self.anns[idx]

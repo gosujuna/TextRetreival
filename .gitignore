@@ -3,4 +3,5 @@ data/vatex/vatex_training_tensors/
 data/vatex/vatex_validation_tensors/
 data/vatex/vatex_validation/
 data/vatex/token_counts.dict
+*.pth
 __pycache__
