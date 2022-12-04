@@ -6,3 +6,7 @@
 
 ## Pretrained model
 -model weights(~/inference/transnetv2-weights/) and dataset stored using git lfs
+
+## Git LFS
+
+-model params stored with git lfs, either download it and pull or just download the zip.
