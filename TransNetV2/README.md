@@ -7,7 +7,7 @@
 ### Flags
 --visualize: generate frame pngs
 
---makeclips: generate segmented .mp4 clips directory from scenes.txt frame boundaries
+--makeclips: generate segmented .mp4 clips from scenes.txt frame boundaries
 
 ## Pretrained model
 -model weights(~/inference/transnetv2-weights/) and dataset stored using git lfs
