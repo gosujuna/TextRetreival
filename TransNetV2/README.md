@@ -4,8 +4,9 @@
 
 -docker run -it --rm --gpus 1 -v /path/to/videos/directory:/tmp transnet transnetv2_predict /tmp/[video_name].mp4 [--visualize] [--makeclips]
 
-### flags
+### Flags
 --visualize: generate frame pngs
+
 --makeclips: generate segmented .mp4 clips from scenes.txt frame boundaries
 
 ## Pretrained model
