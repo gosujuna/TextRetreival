@@ -1,0 +1,11 @@
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_05.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/05.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_03.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/03.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_01.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/01.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_11.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/11.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_10.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/10.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_06.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/06.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_04.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/04.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_02.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/02.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_08.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/08.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_07.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/07.txt
+/home/shezmalik/TransNetV2/training/BBC_dataset/bbc_09.mp4,/home/shezmalik/TransNetV2/training/consolidated/BBCDataset/09.txt
