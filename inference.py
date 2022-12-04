@@ -6,6 +6,7 @@ import os
 import numpy as np
 import torch
 from tqdm import tqdm
+import skvideo.io
 
 import yaml
 from data.vatex import Vatex
@@ -92,7 +93,7 @@ class VideoTextInference:
                 with open(video_path, 'rb') as f:
                     video_features = torch.load(f)
 
-                scores.append(torch.nn.functional.cosine_similarity(video_features, text_features).item())
+                scores.append(torch.sum(video_features * text_features).item())
 
         best_match = video_features[np.argmax(scores)].split('.')[0]
         return best_match
