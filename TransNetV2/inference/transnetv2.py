@@ -1,7 +1,8 @@
 import os
 import numpy as np
 import tensorflow as tf
-
+import cv2
+from tqdm import tqdm
 
 class TransNetV2:
 
@@ -160,23 +161,26 @@ def main():
                         help="path to TransNet V2 weights, tries to infer the location if not specified")
     parser.add_argument('--visualize', action="store_true",
                         help="save a png file with prediction visualization for each extracted video")
+    parser.add_argument('--makeclips', action="store_true", help='saves segmented clips from video file')
+    
     args = parser.parse_args()
 
     model = TransNetV2(args.weights)
     for file in args.files:
+        prediction_generated = False
         if os.path.exists(file + ".predictions.txt") or os.path.exists(file + ".scenes.txt"):
             print(f"[TransNetV2] {file}.predictions.txt or {file}.scenes.txt already exists. "
                   f"Skipping video {file}.", file=sys.stderr)
-            continue
+            prediction_generated = True
+        if not prediction_generated:    
+            video_frames, single_frame_predictions, all_frame_predictions = \
+                model.predict_video(file)
 
-        video_frames, single_frame_predictions, all_frame_predictions = \
-            model.predict_video(file)
+            predictions = np.stack([single_frame_predictions, all_frame_predictions], 1)
+            np.savetxt(file + ".predictions.txt", predictions, fmt="%.6f")
 
-        predictions = np.stack([single_frame_predictions, all_frame_predictions], 1)
-        np.savetxt(file + ".predictions.txt", predictions, fmt="%.6f")
-
-        scenes = model.predictions_to_scenes(single_frame_predictions)
-        np.savetxt(file + ".scenes.txt", scenes, fmt="%d")
+            scenes = model.predictions_to_scenes(single_frame_predictions)
+            np.savetxt(file + ".scenes.txt", scenes, fmt="%d")
 
         if args.visualize:
             if os.path.exists(file + ".vis.png"):
@@ -187,7 +191,48 @@ def main():
             pil_image = model.visualize_predictions(
                 video_frames, predictions=(single_frame_predictions, all_frame_predictions))
             pil_image.save(file + ".vis.png")
+        if args.makeclips:
+            if os.path.exists(file+'_segmented_clips'):
+                os.system("rm -rf " +file+'segmented_clips')
+            else:
+                os.makedirs(file+'_segmented_clips', exist_ok = True)
+            cwd = os.getcwd()
+            videos_dir = os.path.join(cwd, file+'_segmented_clips')
+            with open(file+".scenes.txt", 'rb') as sb:
+                scenes = sb.readlines()
+                scene_boundaries = []
+                for line in scenes:
+                    x,y = line.strip().split()
+                    x = x.decode('utf-8')
+                    y = y.decode('utf-8')
+                    x = int(x)
+                    y = int(y)
+                    scene_boundaries.append((x,y))
+                print('scene boundaries retrieved...\n')
+                os.chdir(videos_dir)
+                cap = cv2.VideoCapture(file)
+                ret, frame = cap.read()
+                total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                print('total frames found: ', total_frames)
+                h, w, _ = frame.shape
 
+                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+                writers = [cv2.VideoWriter(f"part{start}-{end}.mp4", fourcc, 20.0, (w, h)) for start, end in scene_boundaries]
 
-if __name__ == "__main__":
+                f = 0
+                print('generating clips in: ' + videos_dir)
+                while ret:
+                    f += 1
+                    for i, boundaries in enumerate(scene_boundaries):
+                        start, end = boundaries
+                        if start <= f <= end:
+                            writers[i].write(frame)
+                    ret, frame = cap.read()
+                for writer in writers:
+                    writer.release()
+                cap.release()
+                os.chdir(cwd)
+                print('Done')
+
+if __name__ == '__main__':
     main()
