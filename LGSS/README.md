@@ -1,6 +1,7 @@
-Run scene segmentation using this command: python segment_scenes.py --url=<YouTube Video URL> --config=lgss/config/inference.py --threshold=<Threshold used to decide which shot boundaries are scene boundaries>
+Run scene segmentation using this command: 
+python segment_scenes.py --url=<YouTube Video URL> --config=lgss/config/inference.py --threshold=<Threshold used to decide which shot boundaries are scene boundaries>
 
-	For example: python segment_scenes.py --url=https://www.youtube.com/watch?v=TyRVyo5zSYU --config=lgss/config/inference.py --threshold=0.7
+For example: python segment_scenes.py --url=https://www.youtube.com/watch?v=TyRVyo5zSYU --config=lgss/config/inference.py --threshold=0.7
 
  
 
